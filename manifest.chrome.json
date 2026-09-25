@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Native Sidebar Links for ChatGPT",
+  "version": "0.1.0",
+  "description": "Restores native browser link behavior for ChatGPT sidebar conversations.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://www.chatgpt.com/*"
+      ],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
