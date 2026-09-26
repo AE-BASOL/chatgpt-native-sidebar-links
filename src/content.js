@@ -52,7 +52,6 @@
 
   function decorateRow(row) {
     if (!(row instanceof HTMLElement)) return;
-    if (!row.classList.contains("sidebar-item")) return;
     if (row.dataset.nativeSidebarLinkReady === "true") return;
 
     const route = getConversationRoute(row);
@@ -84,7 +83,7 @@
 
   function decorateAll() {
     document
-      .querySelectorAll('div.sidebar-item[role="button"][aria-label]')
+      .querySelectorAll('[role="button"][aria-label]')
       .forEach(decorateRow);
   }
 
