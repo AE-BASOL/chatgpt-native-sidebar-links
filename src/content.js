@@ -3,88 +3,89 @@
 
   const LINK_CLASS = "native-chat-sidebar-link";
 
-  function getConversationRoute(row) {
-    const fiberKey = Object.keys(row).find((key) =>
+  function getConversationMeta(element) {
+    const fiberKey = Object.keys(element).find((key) =>
       key.startsWith("__reactFiber$")
     );
 
     if (!fiberKey) return null;
 
-    let fiber = row[fiberKey];
+    let fiber = element[fiberKey];
+    let route = null;
+    let title = null;
 
-    for (let depth = 0; fiber && depth < 40; depth += 1, fiber = fiber.return) {
+    for (let depth = 0; fiber && depth < 60; depth += 1, fiber = fiber.return) {
       const propSets = [fiber.memoizedProps, fiber.pendingProps];
 
       for (const props of propSets) {
         if (!props) continue;
 
-        if (typeof props.route === "string" && props.route.startsWith("/c/")) {
-          return props.route;
+        if (!route && typeof props.route === "string" && props.route.startsWith("/c/")) {
+          route = props.route;
         }
 
-        if (typeof props.conversationId === "string") {
-          return `/c/${props.conversationId}`;
+        if (!route && typeof props.conversationId === "string") {
+          route = `/c/${props.conversationId}`;
         }
 
-        if (
-          props.conversation &&
-          typeof props.conversation.id === "string"
-        ) {
-          return `/c/${props.conversation.id}`;
+        if (props.conversation && typeof props.conversation === "object") {
+          if (!route && typeof props.conversation.id === "string") {
+            route = `/c/${props.conversation.id}`;
+          }
+
+          if (!title && typeof props.conversation.title === "string") {
+            title = props.conversation.title.trim();
+          }
+        }
+
+        if (!title && typeof props.title === "string" && props.title.trim()) {
+          title = props.title.trim();
         }
       }
+
+      if (route && title) break;
     }
 
-    return null;
+    return route ? { route, title } : null;
   }
 
-  function findTitleSpan(row) {
-    const title = row.getAttribute("aria-label");
+  function isSafeTitleSpan(span, meta) {
+    if (!(span instanceof HTMLSpanElement)) return false;
+    if (span.closest(`a.${LINK_CLASS}`)) return false;
+    if (span.closest("button,[aria-haspopup='menu']")) return false;
 
-    if (!title) return null;
+    const text = span.textContent.trim();
+    if (!text || text.length > 300) return false;
 
-    return (
-      [...row.querySelectorAll("span")].find(
-        (span) => span.textContent.trim() === title.trim()
-      ) || null
-    );
-  }
-
-  function decorateRow(row) {
-    if (!(row instanceof HTMLElement)) return;
-    if (row.dataset.nativeSidebarLinkReady === "true") return;
-
-    const route = getConversationRoute(row);
-    if (!route) return;
-
-    const titleSpan = findTitleSpan(row);
-    if (!titleSpan) return;
-
-    const existingLink = titleSpan.closest(`a.${LINK_CLASS}`);
-
-    if (existingLink) {
-      existingLink.href = route;
-      row.dataset.nativeSidebarLinkReady = "true";
-      return;
+    if (meta.title) {
+      return text === meta.title;
     }
+
+    return span.children.length === 0;
+  }
+
+  function decorateSpan(span) {
+    const meta = getConversationMeta(span);
+    if (!meta || !isSafeTitleSpan(span, meta)) return;
 
     const link = document.createElement("a");
     link.className = LINK_CLASS;
-    link.href = route;
+    link.href = meta.route;
     link.style.color = "inherit";
     link.style.textDecoration = "none";
     link.style.cursor = "pointer";
 
-    titleSpan.parentNode.insertBefore(link, titleSpan);
-    link.appendChild(titleSpan);
-
-    row.dataset.nativeSidebarLinkReady = "true";
+    span.parentNode.insertBefore(link, span);
+    link.appendChild(span);
   }
 
   function decorateAll() {
-    document
-      .querySelectorAll('[role="button"][aria-label]')
-      .forEach(decorateRow);
+    const root =
+      document.querySelector("#app-shell-sidebar") ||
+      document.querySelector("aside") ||
+      document;
+
+    root.querySelectorAll("span").forEach(decorateSpan);
   }
 
   let scheduled = false;
